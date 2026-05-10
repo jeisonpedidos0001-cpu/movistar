@@ -53,26 +53,35 @@ class Robot {
             // Esperar 2 segundos para que se asimile el input
             await new Promise(r => setTimeout(r, 2000));
 
-            // Preparar la escucha de la respuesta ANTES de hacer clic
+            // Preparar la escucha de la respuesta ANTES de hacer clic (capturamos cualquier status)
             const respuestaPromesa = this.page.waitForResponse(
-                response => response.url().includes('/api/data-payment') && response.status() === 200,
-                { timeout: 25000 }
-            ).then(res => res.json()).catch(() => null);
+                response => response.url().includes('/api/data-payment'),
+                { timeout: 20000 }
+            ).catch(() => null);
 
             // Hacer clic en Continuar
             await this.page.click('button[type="submit"]');
 
-            // Esperar la respuesta
-            const data = await respuestaPromesa;
+            // Esperar la respuesta de la red
+            const httpResponse = await respuestaPromesa;
 
-            if (data === 'TIMEOUT' || data === 'ERROR_PARSE' || !data || !data.values) {
-                // Tomar foto de evidencia para ver por qué falló
+            if (!httpResponse) {
+                // Tomar foto si ni siquiera hubo respuesta de red
                 const path = require('path');
                 const fotoPath = path.join(__dirname, `../dist/error_robot_${this.id}.png`);
                 await this.page.screenshot({ path: fotoPath, fullPage: true });
-                console.log(`📸 [Robot-${this.id}] Foto tomada y guardada en: /error_robot_${this.id}.png`);
-                
-                throw new Error('Timeout esperando respuesta de Movistar (Foto tomada)');
+                throw new Error('Timeout extremo: Movistar no respondió nada en 20s');
+            }
+
+            const status = httpResponse.status();
+            if (status !== 200) {
+                throw new Error(`RETRY_NEEDED: Movistar devolvió error ${status} (Problema de su servidor)`);
+            }
+
+            const data = await httpResponse.json().catch(() => null);
+
+            if (!data || !data.values) {
+                throw new Error('RETRY_NEEDED: Respuesta vacía o inválida de Movistar');
             }
 
             console.log(`✅ [Robot-${this.id}] Factura obtenida: $${data.values.transactionValue}`);

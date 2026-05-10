@@ -41,27 +41,43 @@ app.post('/api/consultar', async (req, res) => {
         return res.json(cachedData);
     }
 
-    // 2. Enviar a la cola del pool de robots
-    try {
-        const data = await robotPool.consultar(numero);
+    // 2. Intentar hasta 3 veces si Movistar falla internamente
+    const maxRetries = 3;
+    let lastErrorMsg = '';
 
-        const respuesta = {
-            clientName: data.values?.clientName,
-            transactionValue: data.values?.transactionValue,
-            docNumber: data.values?.docNumber,
-            invoiceSNPaymentInfoRel: data.values?.invoiceInformationQiItem?.[0]?.invoiceSNPaymentInfoRel,
-            raw: data
-        };
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            console.log(`📡 Solicitando a RobotPool: ${numero} (Intento ${i + 1}/${maxRetries})`);
+            const data = await robotPool.consultar(numero);
 
-        cache.set(numero, respuesta);
-        return res.json(respuesta);
+            const respuesta = {
+                clientName: data.values?.clientName,
+                transactionValue: data.values?.transactionValue,
+                docNumber: data.values?.docNumber,
+                invoiceSNPaymentInfoRel: data.values?.invoiceInformationQiItem?.[0]?.invoiceSNPaymentInfoRel,
+                raw: data
+            };
 
-    } catch (error) {
-        console.error(`❌ Error final para ${numero}:`, error.message);
-        return res.status(500).json({
-            error: 'No se pudo obtener la información. Intenta de nuevo en unos segundos.'
-        });
+            cache.set(numero, respuesta);
+            return res.json(respuesta);
+
+        } catch (error) {
+            lastErrorMsg = error.message;
+            if (error.message.includes('RETRY_NEEDED')) {
+                console.log(`⚠️ Movistar falló temporalmente, reintentando automáticamente... (${i+1}/${maxRetries})`);
+                // Esperar un poco antes de reintentar para no saturar
+                await new Promise(r => setTimeout(r, 2000));
+            } else {
+                // Si es un error crítico (como timeout extremo), rompemos el ciclo
+                console.error(`❌ Error final para ${numero}:`, error.message);
+                break;
+            }
+        }
     }
+
+    return res.status(500).json({
+        error: `No se pudo obtener la información después de varios intentos. Movistar puede estar caído. (${lastErrorMsg})`
+    });
 });
 
 // ─────────────────────────────────────────
