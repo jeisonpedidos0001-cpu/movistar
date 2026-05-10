@@ -42,28 +42,7 @@ class Robot {
         try {
             console.log(`📡 [Robot-${this.id}] Consultando: ${numero}`);
 
-            // Promesa que espera la respuesta de Movistar
-            const respuestaPromesa = new Promise((resolve, reject) => {
-                const timer = setTimeout(() => {
-                    reject(new Error(`[Robot-${this.id}] Timeout esperando respuesta de Movistar`));
-                }, 25000);
-
-                const handler = async (response) => {
-                    if (response.url().includes('/api/data-payment')) {
-                        clearTimeout(timer);
-                        this.page.off('response', handler);
-                        try {
-                            const json = await response.json();
-                            resolve(json);
-                        } catch (e) {
-                            reject(e);
-                        }
-                    }
-                };
-                this.page.on('response', handler);
-            });
-
-            // Navegar al formulario y esperar carga completa (incluyendo reCAPTCHA)
+            // Navegar al formulario y esperar carga completa
             await this.page.goto('https://payment.telefonicawebsites.co/', {
                 waitUntil: 'networkidle2',
                 timeout: 45000
@@ -76,22 +55,50 @@ class Robot {
             await this.page.click('input[name="phoneNumber"]', { clickCount: 3 });
             await this.page.type('input[name="phoneNumber"]', String(numero), { delay: 80 });
 
-            // Esperar 2 segundos para que el reCAPTCHA termine de inicializarse
+            // Esperar 2 segundos
             await new Promise(r => setTimeout(r, 2000));
 
-            // Hacer clic en Continuar (Movistar genera su propio reCAPTCHA aquí)
+            // Preparar el interceptor de la respuesta (sin reject para no crashear Node)
+            const respuestaPromesa = new Promise((resolve) => {
+                const timer = setTimeout(() => resolve('TIMEOUT'), 25000);
+
+                const handler = async (response) => {
+                    if (response.url().includes('/api/data-payment')) {
+                        clearTimeout(timer);
+                        this.page.off('response', handler);
+                        try {
+                            const json = await response.json();
+                            resolve(json);
+                        } catch (e) {
+                            resolve('ERROR_PARSE');
+                        }
+                    }
+                };
+                this.page.on('response', handler);
+            });
+
+            // Hacer clic en Continuar
             await this.page.click('button[type="submit"]');
 
-            // Esperar la respuesta interceptada
+            // Esperar la respuesta
             const data = await respuestaPromesa;
 
-            if (!data || !data.values) {
-                throw new Error('Respuesta vacía o inválida de Movistar');
+            if (data === 'TIMEOUT' || data === 'ERROR_PARSE' || !data || !data.values) {
+                // Tomar foto de evidencia para ver por qué falló
+                const path = require('path');
+                const fotoPath = path.join(__dirname, `../dist/error_robot_${this.id}.png`);
+                await this.page.screenshot({ path: fotoPath, fullPage: true });
+                console.log(`📸 [Robot-${this.id}] Foto tomada y guardada en: /error_robot_${this.id}.png`);
+                
+                throw new Error('Timeout esperando respuesta de Movistar (Foto tomada)');
             }
 
             console.log(`✅ [Robot-${this.id}] Factura obtenida: $${data.values.transactionValue}`);
             return data;
 
+        } catch (error) {
+            console.error(`❌ [Robot-${this.id}] Error en la consulta: ${error.message}`);
+            throw error;
         } finally {
             this.busy = false;
         }
