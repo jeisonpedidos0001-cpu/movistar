@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const puppeteer = require('puppeteer-extra');
 
 const tokenPool = require('./token-pool');
 const cache = require('./cache');
@@ -51,24 +52,45 @@ app.post('/api/consultar', async (req, res) => {
                 selectedIndex: 0
             };
 
-            const response = await axios.post('https://payment.telefonicawebsites.co/api/data-payment', payload, {
-                headers: {
-                    'x-platform': 'Web',
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
+            // 🔥 MAGIA: En lugar de usar axios, abrimos una pestaña y usamos el motor de Chrome
+            // Esto lleva la huella digital y el TLS correcto que evita el error 500
+            const browser = await puppeteer.launch({
+                headless: "new",
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
             });
+            const page = await browser.newPage();
+            
+            // Vamos a la raíz para que el origen sea correcto
+            await page.goto('https://payment.telefonicawebsites.co/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            
+            const responseData = await page.evaluate(async (data) => {
+                const res = await fetch('https://payment.telefonicawebsites.co/api/data-payment', {
+                    method: 'POST',
+                    headers: {
+                        'x-platform': 'Web',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!res.ok) {
+                    throw new Error(res.status.toString());
+                }
+                return await res.json();
+            }, payload);
+
+            await browser.close();
 
             // ✅ Éxito: Guardar en caché y responder
-            cache.set(numero, response.data);
+            cache.set(numero, responseData);
             
             // Reponer token usado
             tokenPool.replenish();
-            return res.json(response.data);
+            return res.json(responseData);
 
         } catch (error) {
             lastError = error;
-            console.error(`❌ Error con token actual: ${error.response ? error.response.status : error.message}`);
+            console.error(`❌ Error con token actual: ${error.message}`);
             
             // Si es un error 4xx o 5xx, podría ser el token agotado o bloqueado.
             // Eliminamos ese token de la bolsa rotándolo (ya se sacó con getToken, así que si era malo, está al final, 
