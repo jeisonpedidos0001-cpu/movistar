@@ -52,41 +52,20 @@ app.post('/api/consultar', async (req, res) => {
                 selectedIndex: 0
             };
 
-            // 🔥 MAGIA: En lugar de usar axios, abrimos una pestaña y usamos el motor de Chrome
-            // Esto lleva la huella digital y el TLS correcto que evita el error 500
-            const browser = await puppeteer.launch({
-                headless: "new",
-                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-            });
-            const page = await browser.newPage();
-            
-            // Vamos a la raíz para que el origen sea correcto
-            await page.goto('https://payment.telefonicawebsites.co/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-            
-            const responseData = await page.evaluate(async (data) => {
-                const res = await fetch('https://payment.telefonicawebsites.co/api/data-payment', {
-                    method: 'POST',
-                    headers: {
-                        'x-platform': 'Web',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                if (!res.ok) {
-                    throw new Error(res.status.toString());
+            const response = await axios.post('https://payment.telefonicawebsites.co/api/data-payment', payload, {
+                headers: {
+                    'x-platform': 'Web',
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
-                return await res.json();
-            }, payload);
-
-            await browser.close();
+            });
 
             // ✅ Éxito: Guardar en caché y responder
-            cache.set(numero, responseData);
+            cache.set(numero, response.data);
             
             // Reponer token usado
             tokenPool.replenish();
-            return res.json(responseData);
+            return res.json(response.data);
 
         } catch (error) {
             lastError = error;
