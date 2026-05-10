@@ -27,7 +27,8 @@ class Robot {
         await this.page.setRequestInterception(true);
         this.page.on('request', req => {
             const tipo = req.resourceType();
-            if (['image', 'font', 'media', 'stylesheet'].includes(tipo)) {
+            // Solo bloquear imágenes y fuentes (NO stylesheets, los necesita reCAPTCHA)
+            if (['image', 'font', 'media'].includes(tipo)) {
                 req.abort();
             } else {
                 req.continue();
@@ -62,18 +63,21 @@ class Robot {
                 this.page.on('response', handler);
             });
 
-            // Navegar al formulario
+            // Navegar al formulario y esperar carga completa (incluyendo reCAPTCHA)
             await this.page.goto('https://payment.telefonicawebsites.co/', {
-                waitUntil: 'domcontentloaded',
-                timeout: 30000
+                waitUntil: 'networkidle2',
+                timeout: 45000
             });
 
             // Seleccionar Pospago y escribir el número
-            await this.page.waitForSelector('select', { timeout: 15000 });
+            await this.page.waitForSelector('select', { timeout: 20000 });
             await this.page.select('select', '1');
-            await this.page.waitForSelector('input[name="phoneNumber"]', { timeout: 10000 });
+            await this.page.waitForSelector('input[name="phoneNumber"]', { timeout: 15000 });
             await this.page.click('input[name="phoneNumber"]', { clickCount: 3 });
-            await this.page.type('input[name="phoneNumber"]', String(numero), { delay: 60 });
+            await this.page.type('input[name="phoneNumber"]', String(numero), { delay: 80 });
+
+            // Esperar 2 segundos para que el reCAPTCHA termine de inicializarse
+            await new Promise(r => setTimeout(r, 2000));
 
             // Hacer clic en Continuar (Movistar genera su propio reCAPTCHA aquí)
             await this.page.click('button[type="submit"]');
