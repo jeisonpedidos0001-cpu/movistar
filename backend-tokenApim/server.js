@@ -110,7 +110,9 @@ app.post('/api/consultar', async (req, res) => {
         } catch (error) {
             lastError = error;
             const status = error.response?.status || error.message;
+            const body = error.response?.data;
             console.error(`❌ Error intento ${i + 1}: ${status}`);
+            console.error(`📋 Respuesta de Movistar:`, JSON.stringify(body, null, 2));
             tokenPool.replenish();
         }
     }
