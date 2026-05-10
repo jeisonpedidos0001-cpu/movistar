@@ -23,17 +23,12 @@ class Robot {
         console.log(`🤖 [Robot-${this.id}] Iniciando...`);
         this.browser = await puppeteer.launch({ headless: 'new', args: ARGS });
         this.page = await this.browser.newPage();
-        // Bloquear recursos innecesarios para ahorrar memoria
-        await this.page.setRequestInterception(true);
-        this.page.on('request', req => {
-            const tipo = req.resourceType();
-            // Solo bloquear imágenes y fuentes (NO stylesheets, los necesita reCAPTCHA)
-            if (['image', 'font', 'media'].includes(tipo)) {
-                req.abort();
-            } else {
-                req.continue();
-            }
-        });
+        
+        // Simular un navegador real al 100%
+        await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        await this.page.setViewport({ width: 1366, height: 768 });
+        
+        // YA NO bloqueamos imágenes ni fuentes, porque reCAPTCHA usa imágenes para validar que eres humano.
         console.log(`✅ [Robot-${this.id}] Listo.`);
     }
 
@@ -53,29 +48,16 @@ class Robot {
             await this.page.select('select', '1');
             await this.page.waitForSelector('input[name="phoneNumber"]', { timeout: 15000 });
             await this.page.click('input[name="phoneNumber"]', { clickCount: 3 });
-            await this.page.type('input[name="phoneNumber"]', String(numero), { delay: 80 });
+            await this.page.type('input[name="phoneNumber"]', String(numero), { delay: 100 });
 
-            // Esperar 2 segundos
+            // Esperar 2 segundos para que se asimile el input
             await new Promise(r => setTimeout(r, 2000));
 
-            // Preparar el interceptor de la respuesta (sin reject para no crashear Node)
-            const respuestaPromesa = new Promise((resolve) => {
-                const timer = setTimeout(() => resolve('TIMEOUT'), 25000);
-
-                const handler = async (response) => {
-                    if (response.url().includes('/api/data-payment')) {
-                        clearTimeout(timer);
-                        this.page.off('response', handler);
-                        try {
-                            const json = await response.json();
-                            resolve(json);
-                        } catch (e) {
-                            resolve('ERROR_PARSE');
-                        }
-                    }
-                };
-                this.page.on('response', handler);
-            });
+            // Preparar la escucha de la respuesta ANTES de hacer clic
+            const respuestaPromesa = this.page.waitForResponse(
+                response => response.url().includes('/api/data-payment') && response.status() === 200,
+                { timeout: 25000 }
+            ).then(res => res.json()).catch(() => null);
 
             // Hacer clic en Continuar
             await this.page.click('button[type="submit"]');
