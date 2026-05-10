@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔍 Movistar API Inspector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #019bef;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+    input[type="text"] {
+      flex: 1;
+      min-width: 200px;
+      padding: 13px 18px;
+      border-radius: 10px;
+      border: 1.5px solid #334155;
+      background: #1e2533;
+      color: #e2e8f0;
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #019bef; }
+    input[type="text"]::placeholder { color: #475569; }
+
+    button {
+      padding: 13px 28px;
+      border-radius: 10px;
+      border: none;
+      background: #019bef;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s, transform 0.15s;
+    }
+    button:hover { background: #008edd; transform: translateY(-1px); }
+    button:disabled { background: #334155; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-bar {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .status-bar.ok    { background: #14532d; color: #4ade80; display: block; }
+    .status-bar.error { background: #450a0a; color: #f87171; display: block; }
+
+    /* Two-column layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: #1e2533;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 14px 20px;
+      background: #151b26;
+      border-bottom: 1px solid #2d3748;
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-header .copy-btn {
+      background: #334155;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+    .panel-header .copy-btn:hover { background: #475569; transform: none; }
+
+    /* Field table */
+    .field-table { width: 100%; border-collapse: collapse; }
+    .field-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .field-table td {
+      padding: 9px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid #1a2032;
+      vertical-align: top;
+    }
+    .field-key {
+      color: #7dd3fc;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      white-space: nowrap;
+      width: 40%;
+    }
+    .field-val {
+      color: #e2e8f0;
+      word-break: break-all;
+    }
+    .field-val.null-val  { color: #475569; font-style: italic; }
+    .field-val.num-val   { color: #86efac; }
+    .field-val.bool-val  { color: #f0abfc; }
+    .field-val.str-val   { color: #fde68a; }
+    .field-val.arr-val   { color: #94a3b8; font-style: italic; }
+    .field-val.obj-val   { color: #c4b5fd; font-style: italic; cursor: pointer; text-decoration: underline; }
+
+    /* Raw JSON */
+    pre {
+      padding: 20px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      color: #a8d8ea;
+      overflow: auto;
+      max-height: 600px;
+      line-height: 1.6;
+    }
+
+    .path-badge {
+      font-size: 11px;
+      background: #0f172a;
+      color: #64748b;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .empty-state {
+      padding: 48px 20px;
+      text-align: center;
+      color: #334155;
+      font-size: 14px;
+    }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+    .nested-path {
+      font-size: 11px;
+      color: #475569;
+      font-family: monospace;
+      padding: 4px 14px 10px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🔍 Movistar API Inspector</h1>
+  <p class="subtitle">Inspecciona la respuesta exacta de la API para mapear los campos en la factura. El servidor proxy debe estar corriendo en <strong>localhost:4000</strong>.</p>
+
+  <div class="form-row">
+    <button id="btnConsultar" onclick="consultar()">Obtener última consulta</button>
+  </div>
+
+  <div class="status-bar" id="statusBar"></div>
+
+  <div class="grid" id="resultado" style="display:none">
+    <!-- Panel izquierdo: tabla de campos -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>📋 Campos detectados</span>
+        <button class="copy-btn" onclick="copyFields()">Copiar lista</button>
+      </div>
+      <div id="fieldsContent"></div>
+    </div>
+
+    <!-- Panel derecho: JSON crudo -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>{ } JSON Raw</span>
+        <button class="copy-btn" onclick="copyRaw()">Copiar JSON</button>
+      </div>
+      <pre id="rawJson"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+  let lastData = null;
+
+  async function consultar() {
+    const btn = document.getElementById('btnConsultar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Obteniendo última consulta...';
+
+    const statusBar = document.getElementById('statusBar');
+    statusBar.className = 'status-bar';
+    document.getElementById('resultado').style.display = 'none';
+
+    try {
+      const res = await fetch('http://localhost:4000/api/last-response');
+      const json = await res.json();
+      lastData = json;
+
+      if (json.ok) {
+        statusBar.className = 'status-bar ok';
+        statusBar.textContent = `✅ Mostrando respuesta para número: ${json.numero} (Consultado a las: ${new Date(json.timestamp).toLocaleTimeString()})`;
+        renderFields(json.data);
+        document.getElementById('rawJson').textContent = JSON.stringify(json.data, null, 2);
+        document.getElementById('resultado').style.display = 'grid';
+      } else {
+        statusBar.className = 'status-bar error';
+        statusBar.textContent = `ℹ️ ${json.message || 'Error desconocido'}`;
+      }
+    } catch (err) {
+      statusBar.className = 'status-bar error';
+      statusBar.textContent = `❌ No se pudo conectar al servidor proxy. ¿Está corriendo "node server.js"? — ${err.message}`;
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Obtener última consulta';
+  }
+
+  function renderFields(data, parentKey = '', level = 0) {
+    const container = document.getElementById('fieldsContent');
+    if (level === 0) container.innerHTML = '';
+
+    if (level === 0 && (!data || typeof data !== 'object')) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">🤷</div>Sin datos</div>';
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'field-table';
+    if (parentKey) {
+      const pathLabel = document.createElement('span');
+      pathLabel.className = 'nested-path';
+      pathLabel.textContent = `↳ ${parentKey}`;
+      container.appendChild(pathLabel);
+    }
+
+    const entries = Array.isArray(data)
+      ? data.map((v, i) => [`[${i}]`, v])
+      : Object.entries(data);
+
+    entries.forEach(([key, val]) => {
+      const fullKey = parentKey ? `${parentKey}.${key}` : key;
+      const tr = document.createElement('tr');
+      const tdKey = document.createElement('td');
+      tdKey.className = 'field-key';
+      tdKey.textContent = key;
+      tdKey.title = `Ruta completa: resultado.${fullKey}`;
+
+      const tdVal = document.createElement('td');
+      tdVal.className = 'field-val';
+
+      if (val === null || val === undefined) {
+        tdVal.classList.add('null-val');
+        tdVal.textContent = 'null';
+      } else if (Array.isArray(val)) {
+        tdVal.classList.add('arr-val');
+        tdVal.textContent = `Array [${val.length} items]`;
+        tdVal.title = JSON.stringify(val, null, 2);
+        if (val.length > 0 && typeof val[0] === 'object') {
+          tdVal.classList.add('obj-val');
+          tdVal.onclick = () => {
+            const sub = document.getElementById('fieldsContent');
+            const existing = document.getElementById('sub_' + fullKey.replace(/\./g,'_'));
+            if (existing) { existing.remove(); return; }
+            const subDiv = document.createElement('div');
+            subDiv.id = 'sub_' + fullKey.replace(/\./g,'_');
+            val.forEach((item, i) => renderInto(subDiv, item, `${fullKey}[${i}]`));
+            sub.appendChild(subDiv);
+          };
+        }
+      } else if (typeof val === 'object') {
+        tdVal.classList.add('obj-val');
+        tdVal.textContent = `{ ${Object.keys(val).join(', ')} }`;
+        tdVal.onclick = () => {
+          const sub = document.getElementById('fieldsContent');
+          const existing = document.getElementById('sub_' + fullKey.replace(/\./g,'_'));
+          if (existing) { existing.remove(); return; }
+          const subDiv = document.createElement('div');
+          subDiv.id = 'sub_' + fullKey.replace(/\./g,'_');
+          renderInto(subDiv, val, fullKey);
+          sub.appendChild(subDiv);
+        };
+      } else if (typeof val === 'number') {
+        tdVal.classList.add('num-val');
+        tdVal.textContent = val.toLocaleString('es-CO');
+        tdVal.title = `Valor original: ${val}`;
+      } else if (typeof val === 'boolean') {
+        tdVal.classList.add('bool-val');
+        tdVal.textContent = val.toString();
+      } else {
+        tdVal.classList.add('str-val');
+        tdVal.textContent = val;
+      }
+
+      tr.appendChild(tdKey);
+      tr.appendChild(tdVal);
+      table.appendChild(tr);
+    });
+
+    container.appendChild(table);
+  }
+
+  function renderInto(container, data, parentKey) {
+    const pathLabel = document.createElement('span');
+    pathLabel.className = 'nested-path';
+    pathLabel.textContent = `↳ ${parentKey}`;
+    container.appendChild(pathLabel);
+
+    if (!data || typeof data !== 'object') return;
+
+    const table = document.createElement('table');
+    table.className = 'field-table';
+    Object.entries(data).forEach(([key, val]) => {
+      const tr = document.createElement('tr');
+      const tdKey = document.createElement('td');
+      tdKey.className = 'field-key';
+      tdKey.textContent = key;
+      tdKey.title = `resultado.${parentKey}.${key}`;
+
+      const tdVal = document.createElement('td');
+      tdVal.className = 'field-val';
+
+      if (val === null || val === undefined) {
+        tdVal.classList.add('null-val'); tdVal.textContent = 'null';
+      } else if (typeof val === 'object') {
+        tdVal.classList.add('arr-val');
+        tdVal.textContent = Array.isArray(val) ? `Array [${val.length}]` : `{ ${Object.keys(val).join(', ')} }`;
+        tdVal.title = JSON.stringify(val, null, 2);
+      } else if (typeof val === 'number') {
+        tdVal.classList.add('num-val'); tdVal.textContent = val.toLocaleString('es-CO');
+      } else if (typeof val === 'boolean') {
+        tdVal.classList.add('bool-val'); tdVal.textContent = val.toString();
+      } else {
+        tdVal.classList.add('str-val'); tdVal.textContent = val;
+      }
+
+      tr.appendChild(tdKey);
+      tr.appendChild(tdVal);
+      table.appendChild(tr);
+    });
+    container.appendChild(table);
+  }
+
+  function flattenKeys(obj, prefix = '') {
+    if (!obj || typeof obj !== 'object') return {};
+    return Object.entries(obj).reduce((acc, [k, v]) => {
+      const fullKey = prefix ? `${prefix}.${k}` : k;
+      acc[fullKey] = v;
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        Object.assign(acc, flattenKeys(v, fullKey));
+      }
+      return acc;
+    }, {});
+  }
+
+  function copyFields() {
+    if (!lastData?.data) return;
+    const flat = flattenKeys(lastData.data);
+    const text = Object.entries(flat)
+      .map(([k, v]) => `resultado.${k}  →  ${JSON.stringify(v)}`)
+      .join('\n');
+    navigator.clipboard.writeText(text).then(() => alert('✅ Lista de campos copiada al portapapeles'));
+  }
+
+  function copyRaw() {
+    if (!lastData?.data) return;
+    navigator.clipboard.writeText(JSON.stringify(lastData.data, null, 2))
+      .then(() => alert('✅ JSON copiado al portapapeles'));
+  }
+
+  // Enter para consultar
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') consultar();
+  });
+</script>
+</body>
+</html>
