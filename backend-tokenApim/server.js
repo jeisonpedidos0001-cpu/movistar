@@ -15,7 +15,7 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // Soporte para rutas de React Router (SPA)
-app.get('*', (req, res, next) => {
+app.get(/(.*)/, (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
