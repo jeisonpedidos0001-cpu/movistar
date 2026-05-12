@@ -1,26 +1,30 @@
-# Usamos una imagen de Node con soporte para navegadores
-FROM ghcr.io/puppeteer/puppeteer:latest
+FROM mcr.microsoft.com/playwright:v1.44.0-jammy
 
-# Cambiamos al usuario root para instalar dependencias y mover archivos
-USER root
-
-# Directorio de trabajo
 WORKDIR /app
 
-# Copiamos los archivos de dependencias
-COPY package*.json ./
+# Instalamos dependencias del sistema: pip, alias de python3 y Xvfb (Virtual Framebuffer)
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python-is-python3 \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
 
-# Instalamos las dependencias
+# Instalamos paquetes de Python requeridos por el gestor de sesiones
+RUN pip install --break-system-packages playwright httpx
+RUN playwright install chromium
+
+# Copiamos e instalamos dependencias de Node.js
+COPY package*.json ./
 RUN npm install
 
-# Copiamos el resto del código del proyecto
+# Copiamos el resto del proyecto
 COPY . .
 
-# Compilamos el frontend de React
+# Compilamos la aplicación de React para producción
 RUN npm run build
 
-# Exponemos el puerto que Railway nos asigne
+# Puerto expuesto
 EXPOSE 4000
 
-# Comando para arrancar el servidor inteligente
-CMD ["node", "backend-tokenApim/server.js"]
+# Arrancamos el servidor Node dentro de Xvfb para soportar navegadores con headless=false sin errores de GUI
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x1024x24", "node", "backend-tokenApim/server.js"]
