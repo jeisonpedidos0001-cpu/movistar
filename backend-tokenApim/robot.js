@@ -16,7 +16,7 @@ const ARGS = [
 ];
 
 const PROXY_HOST = process.env.PROXY_HOST || 'p.webshare.io';
-const PROXY_PORT = '36450'; // Puerto alternativo más estable para Webshare
+const PROXY_PORT = process.env.PROXY_PORT || '36450'; // Usar Railway o por defecto 36450
 const PROXY_PASS = process.env.PROXY_PASS || 'vjvlvlhf0y5z';
 
 function getProxyUser(robotId) {
