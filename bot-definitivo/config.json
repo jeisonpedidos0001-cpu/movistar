@@ -1,0 +1,12 @@
+{
+  "efecty_user": "1042850454",
+  "efecty_pass": "J@11072005",
+  "capsolver_api_key": "CAP-FCAABEBE8F4E75BBC493B2FA4995BFA1F3936D34B85B2DF84CBF884F2E333D42",
+  "bot_workers": 8,
+  "bot_delay_seconds": 1.0,
+  "headless_login": false,
+  "input_file": "../bot-movistar/numeros_limpios.txt",
+  "output_file": "resultados_api.txt",
+  "malos_file": "malos_api.txt",
+  "log_file": "log_api.txt"
+}
