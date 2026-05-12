@@ -82,19 +82,28 @@ class TokenManager {
             });
 
             await page.goto('https://payment.telefonicawebsites.co/', {
-                waitUntil: 'domcontentloaded',
+                waitUntil: 'networkidle2', // Esperar a que la red esté quieta
                 timeout: 60000
             });
 
             // Llenar formulario con un número cualquiera para disparar la petición
-            await page.waitForSelector('select', { timeout: 15000 });
+            console.log('📝 [TokenManager] Llenando formulario para capturar token...');
+            await page.waitForSelector('select', { timeout: 20000 });
             await page.select('select', '1');
-            await page.waitForSelector('input[name="phoneNumber"]', { timeout: 10000 });
-            await page.type('input[name="phoneNumber"]', '3162511612', { delay: 80 });
+            
+            await new Promise(r => setTimeout(r, 1000)); // Pausa humana
+
+            await page.waitForSelector('input[name="phoneNumber"]', { timeout: 15000 });
+            await page.click('input[name="phoneNumber"]', { clickCount: 3 });
+            await page.type('input[name="phoneNumber"]', '3162511612', { delay: 150 });
+            
+            await new Promise(r => setTimeout(r, 2000)); // Pausa para que reCAPTCHA se cargue
+
+            console.log('🖱️ [TokenManager] Haciendo clic en Continuar...');
             await page.click('button[type="submit"]');
 
-            // Esperar hasta 25 segundos a que el token aparezca
-            for (let i = 0; i < 25; i++) {
+            // Esperar hasta 30 segundos a que el token aparezca
+            for (let i = 0; i < 30; i++) {
                 if (capturedToken) break;
                 await new Promise(r => setTimeout(r, 1000));
             }
@@ -104,11 +113,18 @@ class TokenManager {
                 this.lastRefresh = new Date();
                 console.log(`✅ [TokenManager] Token listo. Válido desde: ${this.lastRefresh.toISOString()}`);
             } else {
-                console.warn('⚠️ [TokenManager] No se pudo capturar el token.');
+                console.warn('⚠️ [TokenManager] No se pudo capturar el token. Tomando captura de pantalla...');
+                await page.screenshot({ path: '/tmp/token_capture_fail.png', fullPage: true });
             }
 
         } catch (err) {
             console.error('❌ [TokenManager] Error:', err.message);
+            if (browser) {
+                const pages = await browser.pages();
+                if (pages.length > 0) {
+                    await pages[0].screenshot({ path: '/tmp/token_error.png' }).catch(() => {});
+                }
+            }
         } finally {
             if (browser) await browser.close().catch(() => {});
             this.isRefreshing = false;
