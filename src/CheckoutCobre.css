@@ -26,8 +26,14 @@
 }
 
 /* ---------- Reset / Base ---------- */
-*, *::before, *::after { box-sizing: border-box; }
-body, html {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+html {
   margin: 0;
   padding: 0;
   font-family: var(--cobre-font-family);
@@ -70,6 +76,7 @@ body, html {
     flex: 0 0 50%;
     max-width: 50%;
   }
+
   .checkout-summary-col {
     flex: 0 0 50%;
     max-width: 50%;
@@ -82,8 +89,11 @@ body, html {
   background-color: var(--cobre-primary-95);
   height: 91px;
 }
+
 @media (min-width: 992px) {
-  .mobile-header-bar { display: none; }
+  .mobile-header-bar {
+    display: none;
+  }
 }
 
 /* ---------- Mobile summary card (top) ---------- */
@@ -148,7 +158,9 @@ body, html {
 }
 
 @media (min-width: 992px) {
-  .mobile-summary-card { display: none; }
+  .mobile-summary-card {
+    display: none;
+  }
 }
 
 /* ---------- Form container ---------- */
@@ -191,7 +203,9 @@ body, html {
 }
 
 @media (min-width: 576px) {
-  .form-section { margin-top: 32px; }
+  .form-section {
+    margin-top: 32px;
+  }
 }
 
 .form-section-title {
@@ -266,7 +280,7 @@ body, html {
   margin-left: calc(-0.5 * 1rem);
 }
 
-.row-g3 > * {
+.row-g3>* {
   margin-top: 1rem;
 }
 
@@ -454,7 +468,9 @@ body, html {
 }
 
 @media (min-width: 576px) {
-  .co-btn { height: 32px; }
+  .co-btn {
+    height: 32px;
+  }
 }
 
 .co-btn--primary {
@@ -509,7 +525,9 @@ body, html {
 }
 
 @media (min-width: 992px) {
-  .desktop-submit-wrap { display: flex; }
+  .desktop-submit-wrap {
+    display: flex;
+  }
 }
 
 /* ---------- Mobile summary bar (bottom sticky) ---------- */
@@ -522,7 +540,7 @@ body, html {
   background: var(--cobre-white);
   padding: 16px 24px 34px;
   border-radius: 24px 24px 0 0;
-  box-shadow: 0 15px 20px rgba(40,40,43,0.04), 0 4px 15px rgba(40,40,43,0.1);
+  box-shadow: 0 15px 20px rgba(40, 40, 43, 0.04), 0 4px 15px rgba(40, 40, 43, 0.1);
   z-index: 10;
 }
 
@@ -592,7 +610,9 @@ body, html {
 }
 
 @media (min-width: 992px) {
-  .mobile-summary-bar { display: none; }
+  .mobile-summary-bar {
+    display: none;
+  }
 }
 
 /* ---------- Desktop summary panel ---------- */
@@ -701,4 +721,55 @@ body, html {
   font-size: 12px;
   color: var(--cobre-primary-80);
   margin: 0 4px 0 0;
+}
+
+
+/* ---------- Select Dropdown ---------- */
+.co-select {
+  width: 100%;
+  position: relative;
+}
+
+.co-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--cobre-white);
+  border: 0.5px solid var(--cobre-primary-20);
+  border-radius: var(--cobre-radius-XS);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.co-select-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--cobre-primary-95);
+  transition: background 0.1s;
+}
+
+.co-select-option:hover {
+  background: var(--cobre-primary-5);
+}
+
+.co-select-option.selected {
+  background: var(--cobre-primary-10);
+  font-weight: 500;
+}
+
+.co-select-option img {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.co-select-option span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

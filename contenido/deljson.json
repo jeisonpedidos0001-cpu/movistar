@@ -1,0 +1,66 @@
+{
+    "error": 0,
+    "mensaje": "OK",
+    "valores": {
+        "token de transacción": "FURCH4TL5FASTLFYCH 1sBLOjF0T3Kyv3"numControl": "bd******-a",
+        "fecha": "2026-05-12T15:16:51.4196045Z",
+        "codResponse": "00",
+        "docNumber": "61******24",
+        "valor de transacción": 153380,
+        "nombre del cliente": "Iv**** Jo**** Be**** Ba****",
+        "número de teléfono": "",
+        "solicitud": 1,
+        "invoiceInformationQiItem": [
+            {
+                "idCustomerInvoiceInquiry": "205******8",
+                "invoiceSNPaymentInfoRel": "BE********592",
+                "númeroDeCuentaCuentaDeCliente": "61*******41",
+                "cantidad de servicio total": 153380,
+                "deviceInstAmtQIInfoTotal": 0,
+                "propiedad adicionalQIItemTotal": [
+                    {
+                        "idParameter": "OTRO_SERVICIO_AMT",
+                        "valueParameter": "0"
+                    },
+                    {
+                        "idParameter": "OTRO_SERVICIO_AMT",
+                        "valueParameter": "0"
+                    }
+                ]
+            },
+            {
+                "idCustomerInvoiceInquiry": "205******8",
+                "invoiceSNPaymentInfoRel": "BE********592",
+                "númeroDeCuentaCuentaDeCliente": "61*******42",
+                "cantidad de servicio total": 153380,
+                "deviceInstAmtQIInfoTotal": nulo,
+                "additionalPropertyQIITemTotal": nulo
+            },
+            {
+                "idCustomerInvoiceInquiry": "205******8",
+                "invoiceSNPaymentInfoRel": "BE********592",
+                "accountNumberCustomerAccount": "61*******43",
+                "serviceAmountTotal": nulo,
+                "deviceInstAmtQIInfoTotal": 0,
+                "additionalPropertyQIITemTotal": nulo
+            },
+            {
+                "idCustomerInvoiceInquiry": "205******8",
+                "invoiceSNPaymentInfoRel": "BE********592",
+                "númeroDeCuentaCuentaDeCliente": "61*******45",
+                "serviceAmountTotal": nulo,
+                "deviceInstAmtQIInfoTotal": nulo,
+                "propiedad adicionalQIItemTotal": [
+                    {
+                        "idParameter": "OTRO_SERVICIO_AMT",
+                        "valueParameter": "0 "
+                    },
+                    {
+                        "idParameter": "OTRO_SERVICIO_AMT",
+                        "valueParameter": "0"
+                    }
+                ]
+            }
+        ]
+    }
+}

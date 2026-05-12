@@ -3,7 +3,56 @@ import "./CheckoutCobre.css";
 
 const CheckoutCobre = ({ amount = 153380 }) => {
   const [showDetails, setShowDetails] = useState(false);
+
+  // Estados para los selects
+  const [selectedBank, setSelectedBank] = useState({
+    name: "Bancolombia",
+    code: "bancoBancolombia",
+    logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1507.svg"
+  });
+
+  const [selectedDocType, setSelectedDocType] = useState("Cédula de Ciudadanía");
+  const [showBankDropdown, setShowBankDropdown] = useState(false);
+  const [showDocDropdown, setShowDocDropdown] = useState(false);
+
   const formattedAmount = `$${Number(amount).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} COP`;
+
+  // Lista de bancos según tus carpetas (imagen 2)
+  const banks = [
+    { name: "AV Villas", code: "bancoAvVillas", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1052.svg" },
+    { name: "Bancolombia", code: "bancoBancolombia", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1507.svg" },
+    { name: "BBVA Colombia", code: "bancoBbvaColombia", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1480.svg" },
+    { name: "Banco de Bogotá", code: "bancoBogota", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1281.svg" },
+    { name: "Banco Caja Social", code: "bancoCajaSocial", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1283.svg" },
+    { name: "Colpatria", code: "bancoColpatria", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1370.svg" },
+    { name: "Davivienda", code: "bancoDavivienda", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1551.svg" },
+    { name: "Banco Falabella", code: "bancoFalabella", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1706.svg" },
+    { name: "Itaú", code: "bancoItau", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1286.svg" },
+    { name: "Nequi", code: "bancoNequi", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1507.svg" },
+    { name: "Banco de Occidente", code: "bancoOccidente", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1289.svg" },
+    { name: "Banco Popular", code: "bancoPopular", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1552.svg" },
+    { name: "Banco Serfinanza", code: "bancoSerfinanza", logo: "https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1801.svg" },
+  ];
+
+  // Tipos de documento según imagen 1
+  const documentTypes = [
+    "Cédula de Ciudadanía",
+    "Cédula de Extranjería",
+    "Pasaporte",
+    "NIT",
+    "Tarjeta de Identidad",
+    "Permiso por Protección Temporal"
+  ];
+
+  const handleBankSelect = (bank) => {
+    setSelectedBank(bank);
+    setShowBankDropdown(false);
+  };
+
+  const handleDocSelect = (doc) => {
+    setSelectedDocType(doc);
+    setShowDocDropdown(false);
+  };
 
   return (
     <section className="checkout-wrapper">
@@ -57,22 +106,49 @@ const CheckoutCobre = ({ amount = 153380 }) => {
                   <p className="payment-label">PSE</p>
                 </div>
 
+                {/* SELECT BANCOS */}
                 <div className="field-wrap">
                   <label className="co-input-label">Entidad financiera</label>
                   <div className="co-select">
-                    <div className="co-select-toggle">
+                    <div
+                      className="co-select-toggle"
+                      onClick={() => setShowBankDropdown(!showBankDropdown)}
+                    >
                       <div className="co-select-selected">
                         <img
-                          src="https://cobre-portal-static-assets-prod.s3.us-east-1.amazonaws.com/logos/banks/PR_COL_1507.svg"
+                          src={selectedBank.logo}
                           width="16"
                           height="16"
-                          alt="Nequi"
+                          alt={selectedBank.name}
                           className="bank-logo"
                         />
-                        <span>Nequi</span>
+                        <span>{selectedBank.name}</span>
                       </div>
-                      <span className="co-select-arrow icon-chevron-down">▼</span>
+                      <span className="co-select-arrow icon-chevron-down">
+                        {showBankDropdown ? "▲" : "▼"}
+                      </span>
                     </div>
+
+                    {showBankDropdown && (
+                      <div className="co-select-dropdown">
+                        {banks.map((bank) => (
+                          <div
+                            key={bank.code}
+                            className={`co-select-option ${selectedBank.code === bank.code ? 'selected' : ''}`}
+                            onClick={() => handleBankSelect(bank)}
+                          >
+                            <img
+                              src={bank.logo}
+                              width="16"
+                              height="16"
+                              alt={bank.name}
+                              className="bank-logo"
+                            />
+                            <span>{bank.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -99,16 +175,35 @@ const CheckoutCobre = ({ amount = 153380 }) => {
                   </div>
                 </div>
 
-                {/* Tipo documento */}
+                {/* Tipo documento - SELECT FUNCIONAL */}
                 <div className="form-field col-12">
                   <label className="co-input-label">Tipo de documento</label>
                   <div className="co-select">
-                    <div className="co-select-toggle">
+                    <div
+                      className="co-select-toggle"
+                      onClick={() => setShowDocDropdown(!showDocDropdown)}
+                    >
                       <div className="co-select-selected">
-                        <span>Cédula de Ciudadanía</span>
+                        <span>{selectedDocType}</span>
                       </div>
-                      <span className="co-select-arrow icon-chevron-down">▼</span>
+                      <span className="co-select-arrow icon-chevron-down">
+                        {showDocDropdown ? "▲" : "▼"}
+                      </span>
                     </div>
+
+                    {showDocDropdown && (
+                      <div className="co-select-dropdown">
+                        {documentTypes.map((doc) => (
+                          <div
+                            key={doc}
+                            className={`co-select-option ${selectedDocType === doc ? 'selected' : ''}`}
+                            onClick={() => handleDocSelect(doc)}
+                          >
+                            <span>{doc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
