@@ -1,8 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 const path = require('path');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
-const robotPool = require('./robot-pool');
+const tokenManager = require('./token-manager');
+const { resolverRecaptcha } = require('./capsolver');
 const cache = require('./cache');
 
 const app = express();
@@ -18,11 +21,29 @@ app.get(/(.*)/, (req, res, next) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
+// ─── Configuración del Proxy para Axios ───
+const PROXY_HOST = process.env.PROXY_HOST || 'p.webshare.io';
+const PROXY_PORT = process.env.PROXY_PORT || '80';
+const PROXY_USER = process.env.PROXY_USER_1 || '';
+const PROXY_PASS = process.env.PROXY_PASS || '';
+
+function crearProxyAgent() {
+    if (PROXY_USER && PROXY_PASS) {
+        const proxyUrl = `http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}`;
+        return new HttpsProxyAgent(proxyUrl);
+    }
+    return undefined;
+}
+
 // ─────────────────────────────────────────
 // ENDPOINT: Estado del sistema
 // ─────────────────────────────────────────
 app.get('/api/estado', (req, res) => {
-    res.json(robotPool.estado());
+    res.json({
+        tokenDisponible: !!tokenManager.getToken(),
+        ultimoRefresco: tokenManager.lastRefresh,
+        proxyActivo: !!(PROXY_USER && PROXY_PASS)
+    });
 });
 
 // ─────────────────────────────────────────
@@ -41,15 +62,68 @@ app.post('/api/consultar', async (req, res) => {
         return res.json(cachedData);
     }
 
-    // 2. Intentar hasta 3 veces si Movistar falla internamente
+    // 2. Verificar que tenemos el tokenAPim
+    let token = tokenManager.getToken();
+    if (!token) {
+        console.log('⚠️ Token no disponible, forzando refresco...');
+        token = await tokenManager.refrescar();
+        if (!token) {
+            return res.status(503).json({ error: 'El sistema está obteniendo un token. Intenta en 15 segundos.' });
+        }
+    }
+
+    // 3. Intentar hasta 3 veces
     const maxRetries = 3;
     let lastErrorMsg = '';
 
     for (let i = 0; i < maxRetries; i++) {
         try {
-            console.log(`📡 Solicitando a RobotPool: ${numero} (Intento ${i + 1}/${maxRetries})`);
-            const data = await robotPool.consultar(numero);
+            console.log(`📡 Consultando ${numero} (Intento ${i + 1}/${maxRetries})...`);
 
+            // 3a. Resolver reCAPTCHA con CapSolver
+            const recaptchaToken = await resolverRecaptcha();
+
+            // 3b. Armar el payload (mismo formato que usa la web original)
+            const payload = {
+                tokenAPim: token,
+                referenceNumber: numero,
+                date: new Date().toISOString(),
+                business: 1,
+                serviceType: 1,
+                recaptchaToken: recaptchaToken,
+                channel: "web",
+                selectedIndex: 0
+            };
+
+            // 3c. Hacer la petición directa a la API de Movistar (vía proxy colombiano)
+            const agent = crearProxyAgent();
+            const response = await axios.post(
+                'https://payment.telefonicawebsites.co/api/data-payment',
+                payload,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-platform': 'Web',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'es-CO,es;q=0.9',
+                        'Origin': 'https://payment.telefonicawebsites.co',
+                        'Referer': 'https://payment.telefonicawebsites.co/'
+                    },
+                    httpsAgent: agent,
+                    httpAgent: agent,
+                    timeout: 30000
+                }
+            );
+
+            const data = response.data;
+
+            if (data.error !== 0 || !data.values) {
+                console.warn(`⚠️ Movistar respondió con error lógico:`, JSON.stringify(data).substring(0, 200));
+                throw new Error('RETRY_NEEDED: Respuesta inválida de Movistar');
+            }
+
+            // 3d. Formatear la respuesta limpia
             const respuesta = {
                 clientName: data.values?.clientName,
                 transactionValue: data.values?.transactionValue,
@@ -58,25 +132,30 @@ app.post('/api/consultar', async (req, res) => {
                 raw: data
             };
 
+            console.log(`✅ Factura obtenida: $${respuesta.transactionValue} - ${respuesta.clientName}`);
             cache.set(numero, respuesta);
             return res.json(respuesta);
 
         } catch (error) {
             lastErrorMsg = error.message;
-            if (error.message.includes('RETRY_NEEDED')) {
-                console.log(`⚠️ Movistar falló temporalmente, reintentando automáticamente... (${i+1}/${maxRetries})`);
-                // Esperar un poco antes de reintentar para no saturar
-                await new Promise(r => setTimeout(r, 2000));
+            const status = error.response?.status;
+
+            if (status === 401 || status === 403) {
+                // Token vencido → refrescar y reintentar
+                console.log(`🔄 Token rechazado (${status}). Refrescando...`);
+                token = await tokenManager.refrescar();
+            } else if (status === 500 || error.message.includes('RETRY_NEEDED')) {
+                console.log(`⚠️ Movistar falló (${status || 'interno'}). Reintentando... (${i + 1}/${maxRetries})`);
+                await new Promise(r => setTimeout(r, 3000));
             } else {
-                // Si es un error crítico (como timeout extremo), rompemos el ciclo
-                console.error(`❌ Error final para ${numero}:`, error.message);
+                console.error(`❌ Error final: ${error.message}`);
                 break;
             }
         }
     }
 
     return res.status(500).json({
-        error: `No se pudo obtener la información después de varios intentos. Movistar puede estar caído. (${lastErrorMsg})`
+        error: `No se pudo obtener la información. (${lastErrorMsg})`
     });
 });
 
@@ -88,6 +167,10 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
     console.log(`⚡ Caché inteligente activada.`);
-    // Arrancar todos los robots
-    await robotPool.iniciar();
+    console.log(`🧩 CapSolver activado para reCAPTCHA.`);
+    if (PROXY_USER) {
+        console.log(`🌐 Proxy colombiano: ${PROXY_USER}@${PROXY_HOST}:${PROXY_PORT}`);
+    }
+    // Capturar el primer token
+    await tokenManager.iniciar();
 });

@@ -1,5 +1,6 @@
 const axios = require('axios');
 
+// ─── Configuración ───
 const CAPSOLVER_API_KEY = process.env.CAPSOLVER_KEY || 'CAP-FCAABEBE8F4E75BBC493B2FA4995BFA1F3936D34B85B2DF84CBF884F2E333D42';
 const MOVISTAR_SITE_KEY = '6LcZQHsrAAAAAMuGo3b_QaIiJw_krUJ76U2eMivQ';
 const MOVISTAR_URL = 'https://payment.telefonicawebsites.co/';
@@ -7,15 +8,14 @@ const MOVISTAR_URL = 'https://payment.telefonicawebsites.co/';
 async function resolverRecaptcha() {
     console.log('🧩 [CapSolver] Solicitando resolución de reCAPTCHA...');
 
-    // 1. Crear la tarea
+    // Crear la tarea - usamos ReCaptchaV2TaskProxyLess (el invisible de Movistar es v2)
     const createRes = await axios.post('https://api.capsolver.com/createTask', {
         clientKey: CAPSOLVER_API_KEY,
         task: {
-            type: 'ReCaptchaV3TaskProxyLess',
+            type: 'ReCaptchaV2TaskProxyLess',
             websiteURL: MOVISTAR_URL,
             websiteKey: MOVISTAR_SITE_KEY,
-            pageAction: 'consultar_deuda',
-            minScore: 0.7
+            isInvisible: true
         }
     });
 
@@ -24,10 +24,10 @@ async function resolverRecaptcha() {
         throw new Error(`CapSolver no creó tarea: ${JSON.stringify(createRes.data)}`);
     }
 
-    console.log(`🧩 [CapSolver] Tarea creada: ${taskId}. Esperando resultado...`);
+    console.log(`🧩 [CapSolver] Tarea: ${taskId}. Esperando resolución...`);
 
-    // 2. Esperar el resultado (polling cada 3s, máximo 30s)
-    for (let i = 0; i < 10; i++) {
+    // Esperar el resultado (polling cada 3s, máximo 60s)
+    for (let i = 0; i < 20; i++) {
         await new Promise(r => setTimeout(r, 3000));
 
         const resultRes = await axios.post('https://api.capsolver.com/getTaskResult', {
@@ -47,11 +47,9 @@ async function resolverRecaptcha() {
         if (status === 'failed') {
             throw new Error(`CapSolver falló: ${JSON.stringify(resultRes.data)}`);
         }
-
-        console.log(`🧩 [CapSolver] Estado: ${status}. Intento ${i + 1}/10...`);
     }
 
-    throw new Error('CapSolver tardó demasiado en responder.');
+    throw new Error('CapSolver tardó demasiado (60s).');
 }
 
 module.exports = { resolverRecaptcha };
