@@ -68,57 +68,73 @@ class TokenManager {
             let capturedToken = null;
 
             page.on('request', request => {
-                const postData = request.postData();
-                if (postData && postData.includes('tokenAPim')) {
-                    try {
-                        const json = JSON.parse(postData);
-                        if (json.tokenAPim) {
-                            capturedToken = json.tokenAPim;
-                            console.log('🎯 [TokenManager] ¡TOKEN CAPTURADO!');
-                        }
-                    } catch (e) { }
+                const url = request.url();
+                const method = request.method();
+                
+                // Log de depuración para ver qué está pasando
+                if (method === 'POST') {
+                    // console.log(`🔍 [TokenManager] POST detectado: ${url}`);
+                    const postData = request.postData();
+                    if (postData && postData.includes('tokenAPim')) {
+                        try {
+                            const json = JSON.parse(postData);
+                            if (json.tokenAPim) {
+                                capturedToken = json.tokenAPim;
+                                console.log('🎯 [TokenManager] ¡TOKEN CAPTURADO DESDE PETICIÓN!');
+                            }
+                        } catch (e) { }
+                    }
                 }
                 request.continue();
             });
 
             await page.goto('https://payment.telefonicawebsites.co/', {
-                waitUntil: 'domcontentloaded', // No esperar a que cargue todo, solo el HTML
+                waitUntil: 'domcontentloaded',
                 timeout: 60000
             });
 
-            // Esperar 10 segundos manuales para que carguen los scripts de Movistar
-            console.log('⏳ [TokenManager] Esperando carga de scripts...');
-            await new Promise(r => setTimeout(r, 10000)); 
+            // Pausa para que cargue el JS de Movistar
+            await new Promise(r => setTimeout(r, 12000)); 
 
-            // Llenar formulario con un número cualquiera para disparar la petición
-            console.log('📝 [TokenManager] Llenando formulario para capturar token...');
-            await page.waitForSelector('select', { timeout: 20000 });
-            await page.select('select', '1');
-            
-            await new Promise(r => setTimeout(r, 1000)); // Pausa humana
+            // Intentar extraer el token de variables globales (por si ya está cargado)
+            const tokenDesdeJS = await page.evaluate(() => {
+                return window.tokenAPim || window.__TOKEN__ || null;
+            });
 
-            await page.waitForSelector('input[name="phoneNumber"]', { timeout: 15000 });
-            await page.click('input[name="phoneNumber"]', { clickCount: 3 });
-            await page.type('input[name="phoneNumber"]', '3162511612', { delay: 150 });
-            
-            await new Promise(r => setTimeout(r, 2000)); // Pausa para que reCAPTCHA se cargue
+            if (tokenDesdeJS) {
+                capturedToken = tokenDesdeJS;
+                console.log('🎯 [TokenManager] ¡TOKEN CAPTURADO DESDE MEMORIA!');
+            }
 
-            console.log('🖱️ [TokenManager] Haciendo clic en Continuar...');
-            await page.click('button[type="submit"]');
-
-            // Esperar hasta 30 segundos a que el token aparezca
-            for (let i = 0; i < 30; i++) {
-                if (capturedToken) break;
+            if (!capturedToken) {
+                console.log('📝 [TokenManager] Intentando disparar token con formulario...');
+                await page.waitForSelector('select', { timeout: 20000 });
+                await page.select('select', '1');
                 await new Promise(r => setTimeout(r, 1000));
+
+                await page.waitForSelector('input[name="phoneNumber"]', { timeout: 15000 });
+                await page.click('input[name="phoneNumber"]', { clickCount: 3 });
+                // Usar el mismo formato que en tu local
+                await page.type('input[name="phoneNumber"]', '324 5097754', { delay: 150 });
+                
+                await new Promise(r => setTimeout(r, 3000));
+                console.log('🖱️ [TokenManager] Clic en Continuar...');
+                await page.click('button[type="submit"]');
+
+                // Esperar 20 segundos a que aparezca
+                for (let i = 0; i < 20; i++) {
+                    if (capturedToken) break;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
             }
 
             if (capturedToken) {
                 this.currentToken = capturedToken;
                 this.lastRefresh = new Date();
-                console.log(`✅ [TokenManager] Token listo. Válido desde: ${this.lastRefresh.toISOString()}`);
+                console.log(`✅ [TokenManager] Token listo.`);
             } else {
-                console.warn('⚠️ [TokenManager] No se pudo capturar el token. Tomando captura de pantalla...');
-                await page.screenshot({ path: '/tmp/token_capture_fail.png', fullPage: true });
+                console.warn('⚠️ [TokenManager] Fallo total. Tomando captura...');
+                await page.screenshot({ path: '/tmp/token_fail.png', fullPage: true });
             }
 
         } catch (err) {
