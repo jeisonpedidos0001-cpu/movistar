@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalamos paquetes de Python requeridos por el gestor de sesiones
-RUN pip install --break-system-packages playwright httpx
+RUN pip install playwright httpx
 RUN playwright install chromium
 
 # Copiamos e instalamos dependencias de Node.js
