@@ -82,9 +82,13 @@ class TokenManager {
             });
 
             await page.goto('https://payment.telefonicawebsites.co/', {
-                waitUntil: 'networkidle2', // Esperar a que la red esté quieta
+                waitUntil: 'domcontentloaded', // No esperar a que cargue todo, solo el HTML
                 timeout: 60000
             });
+
+            // Esperar 10 segundos manuales para que carguen los scripts de Movistar
+            console.log('⏳ [TokenManager] Esperando carga de scripts...');
+            await new Promise(r => setTimeout(r, 10000)); 
 
             // Llenar formulario con un número cualquiera para disparar la petición
             console.log('📝 [TokenManager] Llenando formulario para capturar token...');
