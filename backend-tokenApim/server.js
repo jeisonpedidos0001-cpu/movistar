@@ -1,4 +1,5 @@
 const express = require('express');
+console.log('🚀 Iniciando proceso del servidor...');
 const cors = require('cors');
 const path = require('path');
 const { spawn } = require('child_process');
