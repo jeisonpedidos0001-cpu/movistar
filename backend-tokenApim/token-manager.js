@@ -130,8 +130,12 @@ class TokenManager {
 
             if (capturedToken) {
                 this.currentToken = capturedToken;
+                // CAPTURAR COOKIES
+                const cookies = await page.cookies();
+                this.currentCookies = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+                
                 this.lastRefresh = new Date();
-                console.log(`✅ [TokenManager] Token listo.`);
+                console.log(`✅ [TokenManager] Token y Cookies listos.`);
             } else {
                 console.warn('⚠️ [TokenManager] Fallo total. Tomando captura...');
                 await page.screenshot({ path: '/tmp/token_fail.png', fullPage: true });

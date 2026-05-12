@@ -63,13 +63,20 @@ app.post('/api/consultar', async (req, res) => {
     }
 
     // 2. Verificar que tenemos el tokenAPim
-    let token = tokenManager.getToken();
-    if (!token) {
+    let session = tokenManager.getSession();
+    if (!session.token) {
         console.log('⚠️ Token no disponible, forzando refresco...');
-        token = await tokenManager.refrescar();
-        if (!token) {
+        await tokenManager.refrescar();
+        session = tokenManager.getSession();
+        if (!session.token) {
             return res.status(503).json({ error: 'El sistema está obteniendo un token. Intenta en 15 segundos.' });
         }
+    }
+
+    // Formatear número para Movistar: "324 5097754"
+    let numeroFormateado = numero;
+    if (numero.length === 10) {
+        numeroFormateado = `${numero.substring(0, 3)} ${numero.substring(3)}`;
     }
 
     // 3. Intentar hasta 3 veces
@@ -78,15 +85,15 @@ app.post('/api/consultar', async (req, res) => {
 
     for (let i = 0; i < maxRetries; i++) {
         try {
-            console.log(`📡 Consultando ${numero} (Intento ${i + 1}/${maxRetries})...`);
+            console.log(`📡 Consultando ${numeroFormateado} (Intento ${i + 1}/${maxRetries})...`);
 
             // 3a. Resolver reCAPTCHA con CapSolver
             const recaptchaToken = await resolverRecaptcha();
 
-            // 3b. Armar el payload (mismo formato que usa la web original)
+            // 3b. Armar el payload
             const payload = {
-                tokenAPim: token,
-                referenceNumber: numero,
+                tokenAPim: session.token,
+                referenceNumber: numeroFormateado,
                 date: new Date().toISOString(),
                 business: 1,
                 serviceType: 1,
@@ -95,7 +102,7 @@ app.post('/api/consultar', async (req, res) => {
                 selectedIndex: 0
             };
 
-            // 3c. Hacer la petición directa a la API de Movistar (vía proxy colombiano)
+            // 3c. Hacer la petición
             const agent = crearProxyAgent();
             const response = await axios.post(
                 'https://payment.telefonicawebsites.co/api/data-payment',
@@ -108,6 +115,7 @@ app.post('/api/consultar', async (req, res) => {
                         'Content-Type': 'application/json',
                         'x-platform': 'Web',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'Cookie': session.cookies, // 🎯 LAS COOKIES SON CLAVE
                         'Origin': 'https://payment.telefonicawebsites.co',
                         'Referer': 'https://payment.telefonicawebsites.co/',
                         'Sec-Fetch-Dest': 'empty',
