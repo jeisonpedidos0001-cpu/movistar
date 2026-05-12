@@ -1,6 +1,6 @@
 const Robot = require('./robot');
 
-const TAMANO_POOL = parseInt(process.env.ROBOT_COUNT || '3');
+const TAMANO_POOL = parseInt(process.env.ROBOT_COUNT || '1');
 
 class RobotPool {
     constructor() {
