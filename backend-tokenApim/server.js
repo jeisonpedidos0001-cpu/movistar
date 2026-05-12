@@ -102,13 +102,18 @@ app.post('/api/consultar', async (req, res) => {
                 payload,
                 {
                     headers: {
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'es-CO,es;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
                         'Content-Type': 'application/json',
                         'x-platform': 'Web',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                        'Accept': 'application/json, text/plain, */*',
-                        'Accept-Language': 'es-CO,es;q=0.9',
                         'Origin': 'https://payment.telefonicawebsites.co',
-                        'Referer': 'https://payment.telefonicawebsites.co/'
+                        'Referer': 'https://payment.telefonicawebsites.co/',
+                        'Sec-Fetch-Dest': 'empty',
+                        'Sec-Fetch-Mode': 'cors',
+                        'Sec-Fetch-Site': 'same-origin',
+                        'Connection': 'keep-alive'
                     },
                     httpsAgent: agent,
                     httpAgent: agent,
